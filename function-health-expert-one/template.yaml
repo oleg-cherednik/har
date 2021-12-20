@@ -1,0 +1,75 @@
+Transform: AWS::Serverless-2016-10-31
+
+Description: >-
+  Resources for 'HealthExpertOne' module
+
+Parameters:
+  Project:
+    Type: String
+    AllowedPattern: '[a-z0-9-]+'
+    Description: >-
+      An unique name of the project (it is used as a prefix for created services)
+  Environment:
+    Type: String
+    Description: >-
+      A name of an environment (it is used as a prefix for created services)
+
+Resources:
+  HealthExpertOneLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${Project}-${Environment}-HealthExpertOne'
+      CodeUri: target/function-health-expert-one-aws.zip
+      Handler: com.epam.har.users.Handler::handleRequest
+      MemorySize: 512
+      Role:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-LambdaRoleArn'
+      Runtime: java11
+      Timeout: 600
+      Environment:
+        Variables:
+          HOST_URL: 'http://ase.asmt.live:8000/services/service1'
+  Health:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      ParentId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiParentId'
+      PathPart: 'health'
+  HealthTip:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      ParentId: !Ref Health
+      PathPart: 'tip'
+  PostHealthTip:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref HealthTip
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Credentials:
+          Fn::ImportValue:
+            !Sub '${Project}-${Environment}-ApiGatewayRoleArn'
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HealthExpertOneLambda.Arn}/invocations'
+  ApiGatewayAllowInvokeFunction:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt HealthExpertOneLambda.Arn
+      Principal: 'apigateway.amazonaws.com'
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*/*/health/tip
+        - { RestApiId: { 'Fn::ImportValue': { 'Fn::Sub': '${Project}-${Environment}-RestApiId' } } }

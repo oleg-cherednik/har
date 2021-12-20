@@ -1,0 +1,74 @@
+openapi: '3.0.3'
+info:
+  title: ARST API
+  description: 'Pre-sale Case: Health and Activity Recommender REST API'
+  version: '1.0'
+paths:
+  '/users':
+    get:
+      description: 'Retrieve all users'
+      responses:
+        200:
+          description: 'A JSON object containing all users'
+          content:
+            'application/json;charset=utf-8':
+              schema:
+                type: object
+              example:
+                - id: '38ffbe1c-6e81-4058-a620-173b92028f39'
+                  firstName: 'Oleg'
+                  lastName: 'Cherednik'
+        500:
+          description: 'Unexpected problem on the server'
+  '/users/{id}':
+    get:
+      description: 'Retrieve user by `id`'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: '38ffbe1c-6e81-4058-a620-173b92028f39'
+      responses:
+        200:
+          description: 'A JSON object containing a user'
+          content:
+            'application/json;charset=utf-8':
+              schema:
+                type: object
+              example:
+                id: '38ffbe1c-6e81-4058-a620-173b92028f39'
+                firstName: 'Oleg'
+                lastName: 'Cherednik'
+        404:
+          description: 'User with given `id` was not found'
+        500:
+          description: 'Unexpected problem on the server'
+  '/health/tip':
+    post:
+      description: 'Retrieve list of actual tips based on actual data form all health experts'
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: '38ffbe1c-6e81-4058-a620-173b92028f39'
+      responses:
+        200:
+          description: 'A JSON object containing list of health tips'
+          content:
+            'application/json;charset=utf-8':
+              schema:
+                type: object
+              example:
+                - 'Sleep more'
+                - 'Drink less water'
+                - 'Take a wakk for 1 hour'
+        404:
+          description: 'User with given `id` was not found'
+        500:
+          description: 'Unexpected problem on the server'

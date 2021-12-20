@@ -1,0 +1,102 @@
+Transform: AWS::Serverless-2016-10-31
+
+Description: >-
+  Resources for 'Users' module
+
+Parameters:
+  Project:
+    Type: String
+    AllowedPattern: '[a-z0-9-]+'
+    Description: >-
+      An unique name of the project (it is used as a prefix for created services)
+  Environment:
+    Type: String
+    Description: >-
+      A name of an environment (it is used as a prefix for created services)
+
+Resources:
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'id'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'id'
+          KeyType: HASH
+      TableName: !Sub '${Project}-${Environment}-Users'
+      BillingMode: PAY_PER_REQUEST
+  UsersLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${Project}-${Environment}-Users'
+      CodeUri: target/function-users-aws.zip
+      Handler: com.epam.har.users.Handler::handleRequest
+      MemorySize: 512
+      Role:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-LambdaRoleArn'
+      Runtime: java11
+      Timeout: 600
+      Environment:
+        Variables:
+          USER_TABLE_NAME: !Ref UserTable
+  Users:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      ParentId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiParentId'
+      PathPart: 'users'
+  GetUsers:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref Users
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Credentials:
+          Fn::ImportValue:
+            !Sub '${Project}-${Environment}-ApiGatewayRoleArn'
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UsersLambda.Arn}/invocations'
+  UserId:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      ParentId: !Ref Users
+      PathPart: '{id}'
+  GetUser:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref UserId
+      RestApiId:
+        Fn::ImportValue:
+          !Sub '${Project}-${Environment}-RestApiId'
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Credentials:
+          Fn::ImportValue:
+            !Sub '${Project}-${Environment}-ApiGatewayRoleArn'
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UsersLambda.Arn}/invocations'
+  ApiGatewayAllowInvokeFunction:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt UsersLambda.Arn
+      Principal: 'apigateway.amazonaws.com'
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApiId}/*/*/users
+        - { RestApiId: { 'Fn::ImportValue': { 'Fn::Sub': '${Project}-${Environment}-RestApiId' } } }

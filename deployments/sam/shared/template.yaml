@@ -1,0 +1,39 @@
+Transform: AWS::Serverless-2016-10-31
+
+Description: >-
+  Shared resources and parameters like database name, api, etc.
+
+Parameters:
+  Project:
+    Type: String
+    AllowedPattern: '[a-z0-9-]+'
+    Description: >-
+      An unique name of the project (it is used as a prefix for created
+      services)
+  Environment:
+    Type: String
+    Description: >-
+      A name of an environment (it is used as a prefix for created services)
+
+Resources:
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${Project}-${Environment}-RestApi-BE'
+      Description: !Sub 'REST API Backend for ${Project} project ${Environment} environment'
+
+Outputs:
+  RestApiId:
+    Value: !Ref RestApi
+    Description: >-
+      API Gateway RestApi ID
+    Export:
+      Name: !Sub '${Project}-${Environment}-RestApiId'
+  RestApiParentId:
+    Value: !GetAtt
+      - RestApi
+      - RootResourceId
+    Description: >-
+      The ID of the parent resource for children API Gateway resources.
+    Export:
+      Name: !Sub '${Project}-${Environment}-RestApiParentId'

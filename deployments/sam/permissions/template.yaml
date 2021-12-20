@@ -1,0 +1,141 @@
+Transform: AWS::Serverless-2016-10-31
+
+Description: >-
+  Roles and permissions for resources
+
+Parameters:
+  Project:
+    Type: String
+    AllowedPattern: '[a-z0-9-]+'
+    Description: >-
+      An unique name of the project (it is used as a prefix for created
+      services)
+  Environment:
+    Type: String
+    Description: >-
+      A name of an environment (it is used as a prefix for created services)
+
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'AllowUploadLogsPolicy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+        - PolicyName: 'AllowReadWriteDynamoDBPolicy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'dynamodb:*'
+                Resource: '*'
+        - PolicyName: 'AllowPublishSnsPolicy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'sns:Publish'
+                Resource: '*'
+        - PolicyName: 'AllowFullAccessS3Policy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 's3:*'
+                Resource: '*'
+        - PolicyName: 'AllowFullAccessSQSPolicy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'sqs:*'
+                Resource: '*'
+        - PolicyName: 'AllowInvokeLambdaPolicy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'lambda:InvokeFunction'
+                Resource: '*'
+        - PolicyName: 'AmazonAPIGatewayInvokeFullAccess'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'execute-api:*'
+                Resource: '*'
+        - PolicyName: 'AllowVpc'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                Resource: '*'
+      RoleName: !Sub '${Project}-${Environment}-lambda'
+  ApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'apigateway.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'AllowInvokeLambdaFunction'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: 'lambda:*'
+                Resource: !Sub 'arn:aws:lambda:*:*:function:${Project}-${Environment}-*'
+        - PolicyName: 'AllowReadS3'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:Get*'
+                  - 's3:List*'
+                Resource: !Sub 'arn:aws:s3:::${Project}-${Environment}-*'
+      RoleName: !Sub '${Project}-${Environment}-apigateway'
+
+Outputs:
+  LambdaRoleArn:
+    Description: A role for Lambda functions
+    Value: !GetAtt
+      - LambdaRole
+      - Arn
+    Export:
+      Name: !Sub '${Project}-${Environment}-LambdaRoleArn'
+  ApiGatewayRoleArn:
+    Description: A role for API Gateway methods
+    Value: !GetAtt
+      - ApiGatewayRole
+      - Arn
+    Export:
+      Name: !Sub '${Project}-${Environment}-ApiGatewayRoleArn'
